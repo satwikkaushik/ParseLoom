@@ -67,18 +67,24 @@ class ItemSet:
                 if next_state:
                     self.transitions[(state_index, symbol)] = state_map[frozenset(next_state)]
 
-    def display_item_sets(self):
-        print("\nConstructed Item Sets:")
-        
-        for i, state in enumerate(self.states):
-            print(f"\nI{i}:")
-            
-            for lhs, rhs, dot_pos in state:
-                production = " ".join(rhs[:dot_pos] + ("•",) + rhs[dot_pos:])
-                print(f"  {lhs} → {production}")
+    def parse(self):
+        try:
+            self.construct_item_sets()
 
-    def display_goto_table(self):
-        print("\nGOTO Table:")
+            #converting tuple keys in transitions to strings
+            serialized_transitions = {
+                f"{state},{symbol}": next_state
+                for (state, symbol), next_state in self.transitions.items()
+            }
 
-        for (state, symbol), next_state in self.transitions.items():
-            print(f"  GOTO(I{state}, {symbol}) = I{next_state}")
+            #converting sets in item_sets to lists for JSON serialization
+            serialized_item_sets = [
+                [list(item) for item in state] for state in self.states
+            ]
+
+            return {
+                "item_sets": serialized_item_sets,
+                "goto_table": serialized_transitions
+            }
+        except Exception as e:
+            raise Exception(f"Error in generating Item Set: {e}")

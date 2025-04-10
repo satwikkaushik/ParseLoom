@@ -1,32 +1,82 @@
-document.getElementById('parse').addEventListener('click', function() {
-    const grammarInput = document.getElementById('grammar').value;
-    
-    if (!grammarInput.trim()) {
-        alert("Please enter a grammar.");
+document.getElementById("parse").addEventListener("click", async function () {
+    // Get user input for grammar and input string
+    const grammarInput = document.getElementById("grammar").value.trim();
+    const inputStr = document.getElementById("inputStr").value.trim();
+
+    // Check if the inputs are valid
+    if (!grammarInput || !inputStr) {
+        alert("Please enter valid grammar and input string.");
         return;
     }
-    const rules = grammarInput.split(',').map(rule => rule.trim());
 
-    const grammarJson = {};
+    // Prepare the payload to send to the backend
+    const requestPayload = {
+        grammar: grammarInput,
+        input_string: inputStr
+    };
+    console.log("Request Payload:", requestPayload);
 
-    rules.forEach(rule => {
-        const [leftSide, rightSide] = rule.split('->').map(part => part.trim());
+    // Send POST request to the Flask backend
+    try {
+        const response = await fetch('http://localhost:5000/parse', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestPayload)
+        });
 
-        if (leftSide && rightSide) {
-            grammarJson[leftSide] = rightSide;
-        }
+        const result = await response.json();
+        console.log("Response from server:", result);
+        // Display the result from the backend
+        displayResult(result);
+    } catch (error) {
+        console.error('Error during parsing:', error);
+        alert("Error in parsing request.");
+    }
+});
+
+// Function to display the parsing steps on the frontend
+function displayResult(result) {
+    const outputContainer = document.getElementById("output-container");
+    outputContainer.innerHTML = "";  // Clear previous output
+
+    // Check if the parsing was successful
+    if (result.status === "accepted") {
+        const steps = result.steps;
+        let stepsHtml = "<h3>Parsing Steps:</h3>";
+        stepsHtml += "<ol>";
+        
+        steps.forEach(step => {
+            stepsHtml += `<li>Action: ${step.action}, Stack: [${step.stack.join(", ")}], Remaining Input: ${step.input}</li>`;
+        });
+
+        stepsHtml += "</ol>";
+        outputContainer.innerHTML = stepsHtml;
+    } else {
+        outputContainer.innerHTML = `<h3>Error:</h3><p>${result.message}</p>`;
+    }
+}
+
+// Function to animate the parsing steps with a delay between each step
+function animateSteps() {
+    const steps = document.querySelectorAll(".step");
+    let currentStep = 0;
+    
+    // Hide all steps initially
+    steps.forEach(step => {
+        step.style.display = "none";
     });
 
-    const outputContainer = document.getElementById('output-container');
-    outputContainer.innerHTML = '';
-    outputContainer.style.display = 'block';
-    outputContainer.innerHTML = '<h3>Parsed Grammar:</h3>';
-    for (const [leftSide, rightSide] of Object.entries(grammarJson)) {
-        const ruleDiv = document.createElement('div');
-        ruleDiv.classList.add('rule');
-        ruleDiv.innerHTML = `<strong>${leftSide}</strong> → <span>${rightSide}</span>`;
-        outputContainer.appendChild(ruleDiv);
+    // Show the steps one by one with a delay
+    function showNextStep() {
+        if (currentStep < steps.length) {
+            steps[currentStep].style.display = "block";  // Show current step
+            currentStep++;
+            setTimeout(showNextStep, 1000);  // Wait 1 second before showing the next step
+        }
     }
 
-    console.log("Grammar in JSON format:", JSON.stringify(grammarJson, null, 2));
-});
+    // Start the animation
+    showNextStep();
+}

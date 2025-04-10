@@ -18,7 +18,7 @@ document.getElementById("parse").addEventListener("click", async function () {
 
     // Send POST request to the Flask backend
     try {
-        const response = await fetch('http://localhost:5000/parse', {
+        const response = await fetch('http://localhost:5000/LR0', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

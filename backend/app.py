@@ -1,7 +1,9 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from LR0.LR0_Parser import LR0_Parser
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route("/", methods=["GET"])
 def home():
@@ -9,10 +11,14 @@ def home():
 
 @app.route("/LR0", methods=["POST"])
 def LR0_parser():
-    TEST_FILE = "test_1.json"
+    input_data = request.get_json()
+    input_grammar = input_data.get("grammar")
+    input_string = input_data.get("string") # input to be parsed
+
+    print("Data from Frontend: ", input_grammar)
     
     try:
-        LR0_parser = LR0_Parser(TEST_FILE)
+        LR0_parser = LR0_Parser(input_grammar)
         result =  LR0_parser.parse()
         
         return jsonify(result), 200
@@ -20,4 +26,4 @@ def LR0_parser():
         return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

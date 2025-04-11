@@ -33,7 +33,7 @@ class Grammar:
             for alt in alternatives:
                 # handling epsilon production
                 if alt in {'ε', 'epsilon', '$', ''}:
-                    self.productions[lhs].append([])
+                    self.productions[lhs].append(['ε'])
                 else:
                     symbols = alt.split()
                     self.productions[lhs].append(symbols)
@@ -41,7 +41,7 @@ class Grammar:
         for lhs, rhs_list in self.productions.items():
             for production in rhs_list:
                 for symbol in production:
-                    if symbol not in self.non_terminals:
+                    if symbol not in self.non_terminals and symbol != 'ε':
                         self.terminals.add(symbol)
 
         return {

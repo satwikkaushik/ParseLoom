@@ -6,6 +6,7 @@ class Grammar:
         self.non_terminals = set()
         self.productions = {}
         self.start_symbol = None
+        self.augmented_start_symbol = None
         self.json_input_file = json_input_file
 
     def parse(self):
@@ -20,6 +21,7 @@ class Grammar:
         # extracting non-terminals(keys)
         self.non_terminals = set(data.keys())
         self.start_symbol = list(data.keys())[0]
+        self.augmented_start_symbol = f"{self.start_symbol}'"
 
         for lhs, rhs in data.items():
             rhs = rhs.strip()
@@ -33,7 +35,7 @@ class Grammar:
             for alt in alternatives:
                 # handling epsilon production
                 if alt in {'ε', 'epsilon', '$', ''}:
-                    self.productions[lhs].append([])
+                    self.productions[lhs].append(['ε'])
                 else:
                     symbols = alt.split()
                     self.productions[lhs].append(symbols)
@@ -41,11 +43,13 @@ class Grammar:
         for lhs, rhs_list in self.productions.items():
             for production in rhs_list:
                 for symbol in production:
-                    if symbol not in self.non_terminals:
+                    if symbol not in self.non_terminals and symbol != 'ε':
                         self.terminals.add(symbol)
 
+        self.terminals.add('$')
         return {
             "start_symbol": self.start_symbol,
+            "augmented_start_symbol": self.augmented_start_symbol,
             "non_terminals": list(self.non_terminals),
             "terminals": list(self.terminals),
             "productions": self.productions

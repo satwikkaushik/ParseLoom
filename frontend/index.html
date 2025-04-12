@@ -4,22 +4,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parser Visualizer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Welcome to LR parser Visualizer</h1>
-    <div id="wrapper">
-        <h2>Enter Your Grammar</h2>
-        <input type="text" id="grammar" placeholder="Enter grammar here (e.g., S->AB, A->a, B->b)">
-        <input type="text" id="inputStr" placeholder="Enter Input String here (e.g., ab)">
-        <button id="parse">Parse</button>
-    </div>
+    <header>
+        <h1>Welcome to LR parser Visualizer</h1>
+    </header>
+    <main>
+        <div class="container">
+            <div class="input-section">
+                <div class="grammar-input">
+                    <h2>Grammar Input</h2>
+                    <p class="help-text">Enter one production rule per line in the format: A -> α | β | γ</p>
+                    <textarea id="grammar-text" placeholder="Example:
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id"></textarea>
+                </div>
+                <div class="input-string">
+                    <h2>Test String</h2>
+                    <p class="help-text">Enter a string to parse (space-separated tokens)</p>
+                    <input type="text" id="input-string" placeholder="Example: id + id * id">
+                </div>
+                <button id="parse-btn">Parse</button>
+            </div>
 
-    <div id="output-container"></div>
+            <div class="loading-spinner" id="loading">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+            </div>
+            
+            <div class="results" id="results">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="grammar">Grammar</button>
+                    <button class="tab-btn" data-tab="itemsets">LR(0) Items</button>
+                    <button class="tab-btn" data-tab="parse-table">Parse Table</button>
+                </div>
 
-    <!-- <footer>
-        <p>&copy; 2025 My    Grammar Parser</p>
-    </footer> -->
+                <div class="tab-content active" id="grammar-tab">
+                    <h2>Grammar</h2>
+                    <div id="grammar-display"></div>
+                    <div class="visual-card">
+                        <h3>First & Follow Sets</h3>
+                        <div id="first-follow-display"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="itemsets-tab">
+                    <h2>LR(0) Items</h2>
+                    <div id="itemsets-display"></div>
+                </div>
+                
+                <div class="tab-content" id="parse-table-tab">
+                    <h2>Parse Table</h2>
+                    <div id="parse-table-display" class="table-container"></div>
+                </div>
+            </div>
+
+            <div class="error-message" id="error-message"></div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p class="copyright">&copy; 2025 ParseLoom</p>
+            <div class="creators">
+                <span>Created by:</span>
+                <div class="creator-links">
+                    <a href="https://github.com/satwikkaushik/" target="_blank"><i class='bx bxl-github github-icon'></i>Satwik Kaushik</a>
+                    <a href="https://github.com/aparagarwal" target="_blank"><i class='bx bxl-github github-icon'></i>Apar Agarwal</a>
+                    <a href="https://github.com/DY-656" target="_blank"><i class='bx bxl-github github-icon'></i>Dhruv Yadav</a>
+                    <a href="https://github.com/peeyush" target="_blank"><i class='bx bxl-github github-icon'></i>Peeyush Sharma</a>
+                </div>
+            </div>
+        </div>
+    </footer>
     <script src="script.js"></script>
 </body>
 </html>

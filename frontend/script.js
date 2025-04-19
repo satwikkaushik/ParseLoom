@@ -96,8 +96,7 @@ function convertToJSON(input) {
 function displayResults(result){
     displayGrammar(result.grammar);
     console.log(result.item_set);
-    // displayItemSets(result.item_set);
-    itemsetsDisplay.innerHTML = 'Item sets will be displayed here.'; // Placeholder for item sets display
+    displayItemSets(result.item_set);
     parseTableDisplay.innerHTML = 'Parse table will be displayed here.'; // Placeholder for parse table display
 }
 
@@ -171,4 +170,33 @@ function formatProduction(production) {
         });
     
     return result;
+}
+
+function displayItemSets(set){
+    set.item_sets.forEach((itemSet, index) => {
+        let html = `<h3 class="itemset-header">Item Set ${index}:</h3>`;
+        html += '<ul class="itemset-items">';
+        
+        itemSet.forEach(item => {
+            const leftPart = item[0];
+            const rightPart = item[1];
+            const dotPlacement = item[2];
+            let rightPartHtml = rightPart.map((symbol, index) => {
+                if (index === dotPlacement) {
+                    return `<span class="dot">•</span> ${symbol}`;
+                } else {
+                    return symbol;
+                }
+            }).join(' ');
+
+            if(dotPlacement === rightPart.length){
+                rightPartHtml += ` <span class="dot">•</span>`;
+            }
+
+            html += `<li class="item"> ${leftPart} ->  ${rightPartHtml} </li>`;
+        });
+
+        html += '</ul>';
+        itemsetsDisplay.innerHTML += `<div class="itemset"> ${html} </div>`;
+    });
 }

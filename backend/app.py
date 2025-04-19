@@ -13,8 +13,7 @@ def home():
 def LR0_parser():
     input_data = request.get_json()
     input_grammar = input_data.get("grammar")
-    # input_string = input_data.get("string")
-    input_string = ["(", "id", ")"] # S -> ( S ) | id
+    input_string = input_data.get("string").split(" ")
     
     try:
         LR0_parser = LR0_Parser(input_grammar, input_string)

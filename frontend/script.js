@@ -6,6 +6,10 @@ const loadingSpinner = document.getElementById('loading');
 const errorMessage = document.getElementById('error-message');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
+const itemsetsHeading = document.getElementById('itemsets-heading');
+const parserTypeDropdown = document.getElementById('parser-type');
+const firstFollowDisplay = document.getElementById('first-follow-display');
+const firstFollowCard = firstFollowDisplay.closest('.visual-card');
 
 // Grammar display elements
 const grammarDisplay = document.getElementById('grammar-display');
@@ -13,6 +17,50 @@ const itemsetsDisplay = document.getElementById('itemsets-display');
 const parseTableDisplay = document.getElementById('parse-table-display');
 
 const backendUrl = 'http://localhost:5000';
+
+// Initialize with selected parser type
+let selectedParserType = parserTypeDropdown.value;
+
+// Update heading when parser type changes
+parserTypeDropdown.addEventListener('change', function() {
+    selectedParserType = this.value;
+    updateUIForParserType(selectedParserType);
+});
+
+function updateUIForParserType(parserType) {
+    // Update UI elements based on parser type
+    if (parserType === 'LR0') {
+        itemsetsHeading.textContent = 'LR(0) Items';
+        // Hide First/Follow card for LR0
+        firstFollowCard.style.display = 'none';
+        
+        // Show example grammar for LR0
+        if (!grammarTextarea.value.trim()) {
+            grammarTextarea.value = 'E -> E + T | T\nT -> id';
+            inputStringField.value = 'id';
+        }
+    } else if (parserType === 'LL1') {
+        itemsetsHeading.textContent = 'LL(1) Items';
+        // Show First/Follow card for LL1
+        firstFollowCard.style.display = 'block';
+        
+        // Show example grammar for LL1
+        if (!grammarTextarea.value.trim()) {
+            grammarTextarea.value = 'E -> T E\'\nE\' -> + T E\' | ε\nT -> F T\'\nT\' -> * F T\' | ε\nF -> ( E ) | id';
+            inputStringField.value = 'id + id * id';
+        }
+    }
+    
+    // Make sure we're on a visible tab
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab.style.display === 'none') {
+        // Switch to Grammar tab as default
+        document.querySelector('.tab-btn[data-tab="grammar"]').click();
+    }
+}
+
+// Initialize UI for the default parser type
+updateUIForParserType(selectedParserType);
 
 tabButtons.forEach(button => {
     button.addEventListener('click', () => {
@@ -42,6 +90,8 @@ parseBtn.addEventListener('click', async () => {
     resultsSection.style.display = 'none';
     errorMessage.style.display = 'none';
     
+    // Clear previous results
+    clearResults();
 
     try {
         // Parse grammar to JSON format
@@ -52,8 +102,11 @@ parseBtn.addEventListener('click', async () => {
             throw new Error('Invalid grammar format. Please check your grammar syntax.');
         }
 
+        // Get the currently selected parser type
+        const parserType = selectedParserType;
+        
         // Send the request to the backend
-        const response = await fetch(`${backendUrl}/LR0`, {
+        const response = await fetch(`${backendUrl}/${parserType}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -84,7 +137,7 @@ parseBtn.addEventListener('click', async () => {
         loadingSpinner.style.display = 'none';
 
         // Display the results
-        displayResults(data);
+        displayResults(data, parserType);
         resultsSection.style.display = 'block';
         resultsSection.classList.add('animate-fade-in');
 
@@ -106,6 +159,13 @@ function showError(message) {
     errorMessage.style.display = 'block';
 }
 
+function clearResults() {
+    grammarDisplay.innerHTML = '';
+    firstFollowDisplay.innerHTML = '';
+    itemsetsDisplay.innerHTML = '';
+    parseTableDisplay.innerHTML = '';
+}
+
 function convertToJSON(input) {
   try {
     const lines = input.trim().split('\n');
@@ -122,11 +182,31 @@ function convertToJSON(input) {
   }
 }
 
-function displayResults(result){    
+function displayResults(result, parserType) {
+    if (!result) {
+        showError('No results returned from the server.');
+        return;
+    }
+    
     try {
         if (result.grammar) displayGrammar(result.grammar);
-        if (result.item_set) displayItemSets(result.item_set);
-        if (result.parsed_table && result.grammar) displayParseTable(result.parsed_table, result.grammar);
+        
+        if (parserType === 'LR0') {
+            if (result.item_set) displayItemSets(result.item_set);
+            if (result.parsed_table && result.grammar) displayParseTable(result.parsed_table, result.grammar);
+            // Hide First/Follow card for LR0
+            firstFollowCard.style.display = 'none';
+        } else if (parserType === 'LL1') {
+            if (result.first_follow) {
+                displayFirstFollow(result.first_follow);
+                // Show First/Follow card for LL1
+                firstFollowCard.style.display = 'block';
+            } else {
+                // If no First/Follow data, hide the card
+                firstFollowCard.style.display = 'none';
+            }
+            if (result.parse_table) displayLL1ParseTable(result.parse_table);
+        }
     } catch (error) {
         showError('Error displaying results: ' + error.message);
         console.error('Display error:', error);
@@ -155,16 +235,18 @@ function displayGrammar(grammar) {
     
     html += '</ul>';
     
-    // Augmented grammar
-    html += '<h3>Augmented Grammar:</h3>';
-    html += '<ul class="grammar-list">';
-    
-    for (const nonTerminal in productions) {
-        const prods = productions[nonTerminal].join(' | ');
-        html += `<li><span class="non-terminal">${nonTerminal}</span> → ${formatProduction(prods)}</li>`;
+    // Augmented grammar (only show for LR0 parser)
+    if (selectedParserType === 'LR0') {
+        html += '<h3>Augmented Grammar:</h3>';
+        html += '<ul class="grammar-list">';
+        
+        for (const nonTerminal in productions) {
+            const prods = productions[nonTerminal].join(' | ');
+            html += `<li><span class="non-terminal">${nonTerminal}</span> → ${formatProduction(prods)}</li>`;
+        }
+        
+        html += '</ul>';
     }
-    
-    html += '</ul>';
     
     html += '</div>';
     
@@ -304,7 +386,106 @@ function displayParseTable(parseTable, grammar){
     parseTableDisplay.innerHTML = html;
 }
 
+// Function to display LL(1) First/Follow Sets
+function displayFirstFollow(firstFollow) {
+    if (!firstFollow || !firstFollow.first || !firstFollow.follow) {
+        showError('Invalid First/Follow sets data received');
+        return;
+    }
+    
+    let html = '<div class="first-follow-container">';
+    
+    // First Sets
+    html += '<div class="first-sets">';
+    html += '<h3>First Sets</h3>';
+    html += '<ul class="set-list">';
+    
+    for (const nonTerminal in firstFollow.first) {
+        html += `<li><span class="non-terminal">${nonTerminal}</span>: { `;
+        const symbols = firstFollow.first[nonTerminal];
+        html += symbols.map(sym => {
+            if (sym === 'ε' || sym === 'epsilon') {
+                return `<span class="terminal">ε</span>`;
+            } else {
+                return `<span class="terminal">${sym}</span>`;
+            }
+        }).join(', ');
+        html += ' }</li>';
+    }
+    
+    html += '</ul>';
+    html += '</div>';
+    
+    // Follow Sets
+    html += '<div class="follow-sets">';
+    html += '<h3>Follow Sets</h3>';
+    html += '<ul class="set-list">';
+    
+    for (const nonTerminal in firstFollow.follow) {
+        html += `<li><span class="non-terminal">${nonTerminal}</span>: { `;
+        const symbols = firstFollow.follow[nonTerminal];
+        html += symbols.map(sym => {
+            if (sym === '$') {
+                return `<span class="terminal">$</span>`;
+            } else {
+                return `<span class="terminal">${sym}</span>`;
+            }
+        }).join(', ');
+        html += ' }</li>';
+    }
+    
+    html += '</ul>';
+    html += '</div>';
+    
+    html += '</div>';
+    firstFollowDisplay.innerHTML = html;
+}
 
-// Add some sample data to the inputs
-grammarTextarea.value = 'E -> E + T | T\nT -> id';
-inputStringField.value = 'id';
+// Function to display LL(1) parse table
+function displayLL1ParseTable(parseTable) {
+    if (!parseTable || !parseTable.table || !parseTable.terminals || !parseTable.non_terminals) {
+        showError('Invalid LL(1) parse table data received');
+        return;
+    }
+    
+    const terminals = parseTable.terminals || [];
+    const nonTerminals = parseTable.non_terminals || [];
+    const table = parseTable.table || {};
+
+    let html = '<table>';
+    html += '<thead><tr><th></th>';
+    
+    // Add terminal headers
+    terminals.forEach(term => {
+        html += `<th>${term}</th>`;
+    });
+    
+    html += '</tr></thead>';
+    html += '<tbody>';
+
+    // Add rows for each non-terminal
+    nonTerminals.forEach(nonTerm => {
+        html += `<tr><td><strong>${nonTerm}</strong></td>`;
+        
+        terminals.forEach(term => {
+            let cellContent = "";
+            if (table[nonTerm] && table[nonTerm][term]) {
+                const production = table[nonTerm][term];
+                cellContent = `${nonTerm} → ${production}`;
+            }
+            html += `<td>${cellContent}</td>`;
+        });
+        
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    parseTableDisplay.innerHTML = html;
+}
+
+// // Add some sample data to the inputs
+// grammarTextarea.value = 'E -> E + T | T\nT -> id';
+// inputStringField.value = 'id';
+
+// Initial setup with sample data
+updateUIForParserType(selectedParserType);

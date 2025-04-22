@@ -417,3 +417,63 @@ tr:hover {
     margin-right: 0.75rem;
     font-size: 1.1rem;
 }
+
+/* Style specifically for the parser type options */
+.parser-selection {
+    background-color: var(--bg-secondary);
+    padding: 0px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    grid-column: 1 / span 2;
+}
+
+.parser-dropdown-container {
+    position: relative;
+    width: 250px;
+}
+
+.parser-dropdown {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px var(--shadow-color);
+    text-align: left;
+    font-weight: 500;
+}
+
+.parser-dropdown:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.parser-dropdown:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(97, 175, 239, 0.3);
+}
+
+.select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    pointer-events: none;
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.parser-dropdown:focus + .select-arrow {
+    color: var(--primary-color);
+    transform: translateY(-50%) rotate(180deg);
+}

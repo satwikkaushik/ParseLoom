@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from LR0.LR0_Parser import LR0_Parser
+# from LL1.LL1 import LL1_Parser
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -17,9 +18,22 @@ def LR0_parser():
     
     try:
         LR0_parser = LR0_Parser(input_grammar, input_string)
-        result =  LR0_parser.parse()
+        result = LR0_parser.parse()
         
         return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/LL1", methods=["POST"])
+def LL1_parser():
+    input_data = request.get_json()
+    input_grammar = input_data.get("grammar")
+    input_string = input_data.get("string").split(" ")
+    
+    try:
+        print("ll1 parser to be implemented")
+        
+        return jsonify(), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

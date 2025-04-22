@@ -9,7 +9,6 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Grammar display elements
 const grammarDisplay = document.getElementById('grammar-display');
-const firstFollowDisplay = document.getElementById('first-follow-display');
 const itemsetsDisplay = document.getElementById('itemsets-display');
 const parseTableDisplay = document.getElementById('parse-table-display');
 
@@ -42,21 +41,44 @@ parseBtn.addEventListener('click', async () => {
     loadingSpinner.style.display = 'flex';
     resultsSection.style.display = 'none';
     errorMessage.style.display = 'none';
+    
 
     try {
+        // Parse grammar to JSON format
+        let grammarJSON;
+        try {
+            grammarJSON = JSON.parse(convertToJSON(grammarText));
+        } catch (parseError) {
+            throw new Error('Invalid grammar format. Please check your grammar syntax.');
+        }
+
         // Send the request to the backend
         const response = await fetch(`${backendUrl}/LR0`, {
             method: 'POST',
             headers: {
-            'Content-Type': 'application/json'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-            grammar: JSON.parse(convertToJSON(grammarText)),
-            string: inputString
+                grammar: grammarJSON,
+                string: inputString
             })
         });
 
+        // Check if response is OK
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(
+                errorData?.message || 
+                `Server error: ${response.status} ${response.statusText}`
+            );
+        }
+
         const data = await response.json();
+
+        // Check if response contains error
+        if (data.error) {
+            throw new Error(data.error);
+        }
 
         // Hide loading spinner
         loadingSpinner.style.display = 'none';
@@ -64,14 +86,18 @@ parseBtn.addEventListener('click', async () => {
         // Display the results
         displayResults(data);
         resultsSection.style.display = 'block';
-        
-        // Add fade-in animation to results section
         resultsSection.classList.add('animate-fade-in');
 
     } catch (error) {
         loadingSpinner.style.display = 'none';
-        showError('Failed to connect to the server. Please check if the server is running.');
-        console.error(error);
+        
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            showError('Failed to connect to the server. Please check if the server is running.');
+        } else {
+            showError(error.message || 'An unexpected error occurred. Please try again.');
+        }
+        
+        console.error('Error details:', error);
     }
 });
 
@@ -81,26 +107,38 @@ function showError(message) {
 }
 
 function convertToJSON(input) {
-  const lines = input.trim().split('\n');
-  const result = {};
+  try {
+    const lines = input.trim().split('\n');
+    const result = {};
 
-  lines.forEach(line => {
-    const [key, value] = line.split('->').map(part => part.trim());
-    result[key] = value;
-  });
+    lines.forEach((line) => {
+      const [key, value] = line.split('->').map(part => part.trim());
+      result[key] = value;
+    });
 
-  return JSON.stringify(result, null, 2);
+    return JSON.stringify(result, null, 2);
+  } catch (error) {
+      throw new Error('Invalid grammar format. Please check your syntax.');
+  }
 }
 
-// Function to display the parsing steps on the frontend
-function displayResults(result){
-    displayGrammar(result.grammar);
-    console.log(result.item_set);
-    displayItemSets(result.item_set);
-    parseTableDisplay.innerHTML = 'Parse table will be displayed here.'; // Placeholder for parse table display
+function displayResults(result){    
+    try {
+        if (result.grammar) displayGrammar(result.grammar);
+        if (result.item_set) displayItemSets(result.item_set);
+        if (result.parsed_table && result.grammar) displayParseTable(result.parsed_table, result.grammar);
+    } catch (error) {
+        showError('Error displaying results: ' + error.message);
+        console.error('Display error:', error);
+    }
 }
 
 function displayGrammar(grammar) {
+    if (!grammar || !grammar.productions) {
+        showError('Invalid grammar data received');
+        return;
+    }
+    
     const productions = grammar.productions;
     let html = '<div class="grammar-display">';
     
@@ -173,6 +211,13 @@ function formatProduction(production) {
 }
 
 function displayItemSets(set){
+    if (!set || !set.item_sets || !Array.isArray(set.item_sets)) {
+        showError('Invalid itemsets data received');
+        return;
+    }
+    
+    itemsetsDisplay.innerHTML = ''; // Clear previous content
+    
     set.item_sets.forEach((itemSet, index) => {
         let html = `<h3 class="itemset-header">Item Set ${index}:</h3>`;
         html += '<ul class="itemset-items">';
@@ -193,10 +238,73 @@ function displayItemSets(set){
                 rightPartHtml += ` <span class="dot">•</span>`;
             }
 
-            html += `<li class="item"> ${leftPart} ->  ${rightPartHtml} </li>`;
+            html += `<li class="item"> ${leftPart} → ${rightPartHtml} </li>`;
         });
 
         html += '</ul>';
         itemsetsDisplay.innerHTML += `<div class="itemset"> ${html} </div>`;
     });
 }
+
+function displayParseTable(parseTable, grammar){
+    if (!parseTable || !parseTable.action_table || !parseTable.goto_table || !grammar) {
+        showError('Invalid parse table data received');
+        return;
+    }
+    
+    const terminals = grammar.terminals || [];
+    const nonTerminal = grammar.non_terminals || [];
+
+    let html = '<table>';
+    html += '<thead><tr><th>State</th>';
+    terminals.forEach(term => {
+        html += `<th>Action [ ${term} ]</th>`;
+    });
+
+    nonTerminal.forEach(nonTerm => {
+        html += `<th>Goto [ ${nonTerm} ]</th>`;
+    });
+    html += '</tr></thead>';
+    html += '<tbody>';
+
+    const states = Object.keys(parseTable.action_table);
+    const actionTable = parseTable.action_table;
+    const gotoTable = parseTable.goto_table;
+
+    states.forEach(state => {
+        html += `<tr><td>${state}</td>`;
+        
+        terminals.forEach(term => {
+            let cellContent = "";
+            if (actionTable[state] && actionTable[state][term]) {
+                const action = actionTable[state][term];
+                if (action.type === 'shift') {
+                    cellContent = `s${action.value}`;
+                } else if (action.type === 'reduce' && action.production) {
+                    const lhs = action.production.lhs;
+                    const rhs = Array.isArray(action.production.rhs) ? action.production.rhs.join(' ') : '';
+                    cellContent = `r(${lhs} → ${rhs})`;
+                } else if (action.type === 'accept') {
+                    cellContent = 'accept';
+                }
+            }
+            html += `<td>${cellContent}</td>`;
+        });
+        
+        nonTerminal.forEach(nonTerm => {
+            let cellContent = "";
+            if (gotoTable[state] && gotoTable[state][nonTerm] !== undefined) {
+                cellContent = gotoTable[state][nonTerm];
+            }
+            html += `<td>${cellContent}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    parseTableDisplay.innerHTML = html;
+}
+
+
+// Add some sample data to the inputs
+grammarTextarea.value = 'E -> E + T | T\nT -> id';
+inputStringField.value = 'id';

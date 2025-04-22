@@ -326,6 +326,41 @@ button:active {
     font-weight: bold;
 }
 
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 20px var(--shadow-color);
+}
+
+th, td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: left;
+    min-width: 150px;
+}
+
+th {
+    background-color: var(--bg-tertiary);
+    font-weight: bold;
+    color: var(--text-highlight);
+}
+
+tr:nth-child(even) {
+    background-color: var(--bg-highlight);
+}
+
+tr:hover {
+    background-color: var(--bg-tertiary);
+}
+
 /* Loading spinner */
 .loading-spinner {
     display: none;

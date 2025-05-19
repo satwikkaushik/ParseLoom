@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +8,24 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <header>
-        <h1>Welcome to LR parser Visualizer</h1>
+        <h1>Welcome to Parser Visualizer</h1>
     </header>
     <main>
         <div class="container">
             <div class="input-section">
+                <div class="parser-selection">
+                    <h2>Select Parser</h2>
+                    <div class="parser-dropdown-container">
+                        <select id="parser-type" class="parser-dropdown">
+                            <option value="LR0">LR(0) Parser</option>
+                            <option value="LL1">LL(1) Parser</option>
+                        </select>
+                        <div class="select-arrow"><i class='bx bx-chevron-down'></i></div>
+                    </div>
+                </div>
                 <div class="grammar-input">
                     <h2>Grammar Input</h2>
                     <p class="help-text">Enter one production rule per line in the format: A -> α | β | γ</p>
@@ -34,24 +46,28 @@ F -> ( E ) | id"></textarea>
                 <div class="spinner"></div>
                 <p>Processing...</p>
             </div>
-            
+
             <div class="results" id="results">
                 <div class="tabs">
                     <button class="tab-btn active" data-tab="grammar">Grammar</button>
-                    <button class="tab-btn" data-tab="itemsets">LR(0) Items</button>
+                    <button class="tab-btn" data-tab="itemsets">Items</button>
                     <button class="tab-btn" data-tab="parse-table">Parse Table</button>
                 </div>
 
                 <div class="tab-content active" id="grammar-tab">
                     <h2>Grammar</h2>
                     <div id="grammar-display"></div>
+                    <div class="visual-card">
+                        <h3>First & Follow Sets</h3>
+                        <div id="first-follow-display"></div>
+                    </div>
                 </div>
 
                 <div class="tab-content" id="itemsets-tab">
-                    <h2>LR(0) Items</h2>
+                    <h2 id="itemsets-heading">LR(0) Items</h2>
                     <div id="itemsets-display"></div>
                 </div>
-                
+
                 <div class="tab-content" id="parse-table-tab">
                     <h2>Parse Table</h2>
                     <div id="parse-table-display" class="table-container"></div>
@@ -59,18 +75,24 @@ F -> ( E ) | id"></textarea>
             </div>
 
             <div class="error-message" id="error-message"></div>
+        </div>
     </main>
 
     <footer>
         <div class="footer-content">
-            <p class="copyright">&copy; 2025 <a href="https://github.com/satwikkaushik/ParseLoom" target="_blank" style="color: white;">ParseLoom</a></p>
+            <p class="copyright">&copy; 2025 <a href="https://github.com/satwikkaushik/ParseLoom" target="_blank"
+                    style="color: white;">ParseLoom</a></p>
             <div class="creators">
                 <span>Created by:</span>
                 <div class="creator-links">
-                    <a href="https://github.com/satwikkaushik/" target="_blank"><i class='bx bxl-github github-icon'></i>Satwik Kaushik</a>
-                    <a href="https://github.com/aparagarwal" target="_blank"><i class='bx bxl-github github-icon'></i>Apar Agarwal</a>
-                    <a href="https://github.com/DY-656" target="_blank"><i class='bx bxl-github github-icon'></i>Dhruv Yadav</a>
-                    <a href="https://github.com/PeeyushSharma15" target="_blank"><i class='bx bxl-github github-icon'></i>Peeyush Sharma</a>
+                    <a href="https://github.com/satwikkaushik/" target="_blank"><i
+                            class='bx bxl-github github-icon'></i>Satwik Kaushik</a>
+                    <a href="https://github.com/aparagarwal" target="_blank"><i
+                            class='bx bxl-github github-icon'></i>Apar Agarwal</a>
+                    <a href="https://github.com/DY-656" target="_blank"><i class='bx bxl-github github-icon'></i>Dhruv
+                        Yadav</a>
+                    <a href="https://github.com/PeeyushSharma15" target="_blank"><i
+                            class='bx bxl-github github-icon'></i>Peeyush Sharma</a>
                 </div>
             </div>
         </div>

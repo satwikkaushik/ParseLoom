@@ -1,9 +1,12 @@
 import json
 from .Grammar import Grammar
+from .First_Follow_Generator import First_Follow_Generator
 
 class LL1_Parser:
     def __init__(self):
         self.parsed_grammar = None
+        self.start_symbol = None
+        self.first_follow_result = None
 
     # remove this later
     def load_rules_from_json(self, filename):
@@ -36,6 +39,14 @@ class LL1_Parser:
             grammar = Grammar(data)
             self.parsed_grammar = grammar.parse()
 
-            return self.parsed_grammar
+            self.start_symbol = list(self.parsed_grammar["removed_left_factoring"].keys())[0]
+
+            first_follow_generator = First_Follow_Generator(self.start_symbol, self.parsed_grammar)
+            self.first_follow_result = first_follow_generator.parse()
+
+            return {
+                "parsed_grammar": self.parsed_grammar,
+                "first_follow: ": self.first_follow_result,
+            }
         else:
             print("Failed to load grammar from the specified file.")

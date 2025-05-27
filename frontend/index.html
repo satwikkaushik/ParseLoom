@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -12,6 +12,9 @@
 <body>
     <header>
         <h1>Welcome to Parser Visualizer</h1>
+        <button id="theme-toggle" class="theme-toggle-btn" title="Toggle dark/light theme">
+            <i class='bx bx-moon'></i>
+        </button>
     </header>
     <main>
         <div class="container">
@@ -45,13 +48,12 @@ F -> ( E ) | id"></textarea>
             <div class="loading-spinner" id="loading">
                 <div class="spinner"></div>
                 <p>Processing...</p>
-            </div>
-
-            <div class="results" id="results">
+            </div>            <div class="results" id="results">
                 <div class="tabs">
                     <button class="tab-btn active" data-tab="grammar">Grammar</button>
                     <button class="tab-btn" data-tab="itemsets">Items</button>
                     <button class="tab-btn" data-tab="parse-table">Parse Table</button>
+                    <button class="tab-btn" data-tab="parsing-steps">Parsing Steps</button>
                 </div>
 
                 <div class="tab-content active" id="grammar-tab">
@@ -72,6 +74,11 @@ F -> ( E ) | id"></textarea>
                     <h2>Parse Table</h2>
                     <div id="parse-table-display" class="table-container"></div>
                 </div>
+
+                <div class="tab-content" id="parsing-steps-tab">
+                    <h2>Parsing Steps</h2>
+                    <div id="parsing-steps-display" class="parsing-steps-container"></div>
+                </div>
             </div>
 
             <div class="error-message" id="error-message"></div>
@@ -80,8 +87,7 @@ F -> ( E ) | id"></textarea>
 
     <footer>
         <div class="footer-content">
-            <p class="copyright">&copy; 2025 <a href="https://github.com/satwikkaushik/ParseLoom" target="_blank"
-                    style="color: white;">ParseLoom</a></p>
+        <p class="copyright">&copy; 2025 <a href="https://github.com/satwikkaushik/ParseLoom" style="color: white;" target="_blank">ParseLoom</a></p>
             <div class="creators">
                 <span>Created by:</span>
                 <div class="creator-links">

@@ -10,11 +10,13 @@ const itemsetsHeading = document.getElementById('itemsets-heading');
 const parserTypeDropdown = document.getElementById('parser-type');
 const firstFollowDisplay = document.getElementById('first-follow-display');
 const firstFollowCard = firstFollowDisplay.closest('.visual-card');
+const themeToggleBtn = document.getElementById('theme-toggle');
 
 // Grammar display elements
 const grammarDisplay = document.getElementById('grammar-display');
 const itemsetsDisplay = document.getElementById('itemsets-display');
 const parseTableDisplay = document.getElementById('parse-table-display');
+const parseStepsDisplay = document.getElementById('parsing-steps-display');
 
 const backendUrl = 'http://localhost:5000';
 
@@ -34,6 +36,10 @@ function updateUIForParserType(parserType) {
         // Hide First/Follow card for LR0
         firstFollowCard.style.display = 'none';
         
+        // Show all tabs for LR0
+        document.querySelector('.tab-btn[data-tab="itemsets"]').style.display = '';
+        document.querySelector('.tab-btn[data-tab="parse-table"]').style.display = '';
+        
         // Show example grammar for LR0
         if (!grammarTextarea.value.trim()) {
             grammarTextarea.value = 'E -> E + T | T\nT -> id';
@@ -44,11 +50,14 @@ function updateUIForParserType(parserType) {
         // Show First/Follow card for LL1
         firstFollowCard.style.display = 'block';
         
+        // Hide itemsets tab for LL1 since there are no itemsets
+        document.querySelector('.tab-btn[data-tab="itemsets"]').style.display = 'none';
+        
         // Show example grammar for LL1
-        if (!grammarTextarea.value.trim()) {
+        // if (!grammarTextarea.value.trim()) {
             grammarTextarea.value = 'E -> T E\'\nE\' -> + T E\' | ε\nT -> F T\'\nT\' -> * F T\' | ε\nF -> ( E ) | id';
             inputStringField.value = 'id + id * id';
-        }
+        // }
     }
     
     // Make sure we're on a visible tab
@@ -164,6 +173,7 @@ function clearResults() {
     firstFollowDisplay.innerHTML = '';
     itemsetsDisplay.innerHTML = '';
     parseTableDisplay.innerHTML = '';
+    parseStepsDisplay.innerHTML = '';
 }
 
 function convertToJSON(input) {
@@ -189,23 +199,12 @@ function displayResults(result, parserType) {
     }
     
     try {
-        if (result.grammar) displayGrammar(result.grammar);
-        
         if (parserType === 'LR0') {
-            if (result.item_set) displayItemSets(result.item_set);
-            if (result.parsed_table && result.grammar) displayParseTable(result.parsed_table, result.grammar);
-            // Hide First/Follow card for LR0
-            firstFollowCard.style.display = 'none';
+            displayLR0Results(result);
         } else if (parserType === 'LL1') {
-            if (result.first_follow) {
-                displayFirstFollow(result.first_follow);
-                // Show First/Follow card for LL1
-                firstFollowCard.style.display = 'block';
-            } else {
-                // If no First/Follow data, hide the card
-                firstFollowCard.style.display = 'none';
-            }
-            if (result.parse_table) displayLL1ParseTable(result.parse_table);
+            displayLL1Results(result);
+        } else {
+            showError(`Unsupported parser type: ${parserType}`);
         }
     } catch (error) {
         showError('Error displaying results: ' + error.message);
@@ -213,7 +212,69 @@ function displayResults(result, parserType) {
     }
 }
 
-function displayGrammar(grammar) {
+function displayLR0Results(result) {
+    firstFollowCard.style.display = 'none';
+
+    document.querySelector('.tab-btn[data-tab="itemsets"]').style.display = '';
+    document.querySelector('.tab-btn[data-tab="parse-table"]').style.display = '';
+
+    if (result.grammar) {
+        displayLR0Grammar(result.grammar);
+    }
+    if (result.item_set) {
+        displayItemSets(result.item_set);
+    }
+    if (result.parsed_table && result.grammar) {
+        displayParseTable(result.parsed_table, result.grammar);
+    }
+    if (result.parsed_table && result.parsed_table.parsing_steps) {
+        displayParsingSteps(result.parsed_table.parsing_steps);
+    }
+}
+
+function displayLL1Results(result) {
+    itemsetsDisplay.innerHTML = '';
+    const itemsetsTab = document.getElementById('itemsets-tab');
+    itemsetsTab.classList.remove('active');
+    document.querySelector('.tab-btn[data-tab="itemsets"]').style.display = 'none';
+    
+    // Hide parse table tab if no data
+    if (!result.parse_table) {
+        document.querySelector('.tab-btn[data-tab="parse-table"]').style.display = 'none';
+    } else {
+        document.querySelector('.tab-btn[data-tab="parse-table"]').style.display = '';
+        displayLL1ParseTable(result.parse_table);
+    }
+    
+    document.querySelector('.tab-btn[data-tab="grammar"]').click();
+
+    const firstFollowData = result.first_follow || result['first_follow: '];
+    
+    if (firstFollowData) {
+        displayFirstFollow(firstFollowData);
+        firstFollowCard.style.display = 'block';
+    } else {
+        firstFollowCard.style.display = 'none';
+    }
+    
+    if (result.grammar) {
+        displayLL1Grammar(result.grammar);
+    }
+    
+    if (result.parsing_steps) {
+        if (Array.isArray(result.parsing_steps) && 
+            result.parsing_steps.length > 0 && 
+            Array.isArray(result.parsing_steps[0])) {
+            // This is LL1 format with [stack, input] pairs
+            displayLL1ParsingSteps(result.parsing_steps);
+        } else {
+            // This might be a different format
+            displayParsingSteps(result.parsing_steps);
+        }
+    }
+}
+
+function displayLR0Grammar(grammar) {
     if (!grammar || !grammar.productions) {
         showError('Invalid grammar data received');
         return;
@@ -235,19 +296,16 @@ function displayGrammar(grammar) {
     
     html += '</ul>';
     
-    // Augmented grammar (only show for LR0 parser)
-    if (selectedParserType === 'LR0') {
-        html += '<h3>Augmented Grammar:</h3>';
-        html += '<ul class="grammar-list">';
-        
-        for (const nonTerminal in productions) {
-            const prods = productions[nonTerminal].join(' | ');
-            html += `<li><span class="non-terminal">${nonTerminal}</span> → ${formatProduction(prods)}</li>`;
-        }
-        
-        html += '</ul>';
+    // Augmented grammar
+    html += '<h3>Augmented Grammar:</h3>';
+    html += '<ul class="grammar-list">';
+    
+    for (const nonTerminal in productions) {
+        const prods = productions[nonTerminal].join(' | ');
+        html += `<li><span class="non-terminal">${nonTerminal}</span> → ${formatProduction(prods)}</li>`;
     }
     
+    html += '</ul>';
     html += '</div>';
     
     grammarDisplay.innerHTML = html;
@@ -263,6 +321,44 @@ function displayGrammar(grammar) {
             item.style.transform = 'translateX(0)';
         }, index * 100);
     });
+}
+
+function displayLL1Grammar(grammar) {
+    if (!grammar) {
+        showError('Invalid grammar data received');
+        return;
+    }
+    
+    let html = '<div class="grammar-display">';
+    
+    if (grammar.grammar) {
+    
+        html += '<h3>Grammar:</h3>';
+        html += '<ul class="grammar-list">';
+        
+        const grammarRules = grammar.grammar;
+        for (const nonTerminal in grammarRules) {
+            html += `<li><span class="non-terminal">${nonTerminal}</span> → ${formatProduction(grammarRules[nonTerminal])}</li>`;
+        }
+        
+        html += '</ul>';
+        html += '</div>';
+        grammarDisplay.innerHTML += html;
+
+        const listItems = grammarDisplay.querySelectorAll('li');
+        listItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            setTimeout(() => {
+                item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, index * 100);
+        });
+    }
+    if (grammar.removed_left_recursion || grammar.removed_left_factoring) {
+        displayGrammarTransformations(grammar);
+    }
 }
 
 function formatProduction(production) {
@@ -388,7 +484,13 @@ function displayParseTable(parseTable, grammar){
 
 // Function to display LL(1) First/Follow Sets
 function displayFirstFollow(firstFollow) {
-    if (!firstFollow || !firstFollow.first || !firstFollow.follow) {
+    console.log('Displaying First/Follow sets:', firstFollow);
+    
+    // Handle different property names in the backend response
+    const firstSets = firstFollow.first || firstFollow.firsts;
+    const followSets = firstFollow.follow || firstFollow.follows;
+    
+    if (!firstFollow || !firstSets || !followSets) {
         showError('Invalid First/Follow sets data received');
         return;
     }
@@ -400,11 +502,11 @@ function displayFirstFollow(firstFollow) {
     html += '<h3>First Sets</h3>';
     html += '<ul class="set-list">';
     
-    for (const nonTerminal in firstFollow.first) {
+    for (const nonTerminal in firstSets) {
         html += `<li><span class="non-terminal">${nonTerminal}</span>: { `;
-        const symbols = firstFollow.first[nonTerminal];
+        const symbols = firstSets[nonTerminal];
         html += symbols.map(sym => {
-            if (sym === 'ε' || sym === 'epsilon') {
+            if (sym === 'ε' || sym === 'epsilon' || sym === '#') {
                 return `<span class="terminal">ε</span>`;
             } else {
                 return `<span class="terminal">${sym}</span>`;
@@ -421,9 +523,9 @@ function displayFirstFollow(firstFollow) {
     html += '<h3>Follow Sets</h3>';
     html += '<ul class="set-list">';
     
-    for (const nonTerminal in firstFollow.follow) {
+    for (const nonTerminal in followSets) {
         html += `<li><span class="non-terminal">${nonTerminal}</span>: { `;
-        const symbols = firstFollow.follow[nonTerminal];
+        const symbols = followSets[nonTerminal];
         html += symbols.map(sym => {
             if (sym === '$') {
                 return `<span class="terminal">$</span>`;
@@ -450,14 +552,13 @@ function displayLL1ParseTable(parseTable) {
     
     const terminals = parseTable.terminals || [];
     const nonTerminals = parseTable.non_terminals || [];
-    const table = parseTable.table || {};
-
-    let html = '<table>';
-    html += '<thead><tr><th></th>';
+    const table = parseTable.table || {};    let html = '<div class="table-responsive"><table class="parse-table">';
+    html += '<thead><tr><th class="header-cell">Non-Terminal</th>';
     
     // Add terminal headers
     terminals.forEach(term => {
-        html += `<th>${term}</th>`;
+        const displayTerm = term === '#' ? 'ε' : term;
+        html += `<th class="header-cell">${displayTerm}</th>`;
     });
     
     html += '</tr></thead>';
@@ -465,27 +566,340 @@ function displayLL1ParseTable(parseTable) {
 
     // Add rows for each non-terminal
     nonTerminals.forEach(nonTerm => {
-        html += `<tr><td><strong>${nonTerm}</strong></td>`;
+        html += `<tr><td class="non-terminal-cell"><span class="non-terminal">${nonTerm}</span></td>`;
         
         terminals.forEach(term => {
             let cellContent = "";
             if (table[nonTerm] && table[nonTerm][term]) {
                 const production = table[nonTerm][term];
-                cellContent = `${nonTerm} → ${production}`;
+                
+                // Format the production with proper styling for terminals and non-terminals
+                let formattedProduction = '';
+                if (Array.isArray(production)) {
+                    formattedProduction = production.map(symbol => {
+                        if (symbol === '#') {
+                            return '<span class="terminal">ε</span>';
+                        } else if (symbol.match(/^[A-Z][A-Z']*$/)) {
+                            return `<span class="non-terminal">${symbol}</span>`;
+                        } else {
+                            return `<span class="terminal">${symbol}</span>`;
+                        }
+                    }).join(' ');
+                } else if (typeof production === 'string') {
+                    // Handle string format (might be "symbol1 symbol2")
+                    formattedProduction = production.split(' ').map(symbol => {
+                        if (symbol === '#' || symbol === 'ε') {
+                            return '<span class="terminal">ε</span>';
+                        } else if (symbol.match(/^[A-Z][A-Z']*$/)) {
+                            return `<span class="non-terminal">${symbol}</span>`;
+                        } else {
+                            return `<span class="terminal">${symbol}</span>`;
+                        }
+                    }).join(' ');
+                }
+                
+                cellContent = `<span class="non-terminal">${nonTerm}</span> → ${formattedProduction}`;
             }
-            html += `<td>${cellContent}</td>`;
-        });
+            html += `<td class="production-cell">${cellContent}</td>`;        });
         
         html += '</tr>';
     });
     
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     parseTableDisplay.innerHTML = html;
 }
 
-// // Add some sample data to the inputs
-// grammarTextarea.value = 'E -> E + T | T\nT -> id';
-// inputStringField.value = 'id';
+
+// Function to display parsing steps in tabular format
+function displayParsingSteps(parsingSteps) {
+    if (!parsingSteps || !Array.isArray(parsingSteps)) {
+        showError('Invalid parsing steps data received');
+        return;
+    }
+    
+    const parsingStepsDisplay = document.getElementById('parsing-steps-display');
+    parsingStepsDisplay.innerHTML = '';
+    
+    if (parsingSteps.length === 0) {
+        parsingStepsDisplay.innerHTML = '<div class="no-data">No parsing steps available.</div>';
+        return;
+    }
+    
+    // Create table structure
+    let html = `
+    <div class="parsing-table-container">
+        <table class="parsing-table">
+            <thead>
+                <tr>
+                    <th>Step</th>
+                    <th>Stack</th>
+                    <th>Input</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+      // Add rows for each parsing step
+    parsingSteps.forEach((step, index) => {
+        const animationDelay = index * 50;html += `        <tr class="parsing-table-row parsing-animation" style="animation-delay: ${animationDelay}ms">
+            <td class="step-number">${step.step}</td>
+            <td class="step-stack">
+                <div class="stack-container">
+                    ${step.stack.map((item, i) => 
+                        `<span class="stack-item" title="Stack position ${i}">${item}</span>`
+                    ).join('')}
+                </div>
+            </td>
+            <td class="step-input">
+                <div class="input-container">
+                    ${step.input.map((token, i) => 
+                        `<span class="input-token" title="Input position ${i}">${token}</span>`
+                    ).join('')}
+                </div>
+            </td>
+            <td class="step-action">${step.action}</td>
+        </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    </div>
+    `;
+    
+    parsingStepsDisplay.innerHTML = html;
+    
+    // Add click handler to highlight active row
+    const tableRows = parsingStepsDisplay.querySelectorAll('.parsing-table-row');
+    tableRows.forEach(row => {
+        row.addEventListener('click', () => {
+            // Remove active class from all rows
+            tableRows.forEach(r => r.classList.remove('active'));
+            // Add active class to clicked row
+            row.classList.toggle('active');
+        });
+    });
+}
+
+// Function to display parsing steps for LL1 parser
+function displayLL1ParsingSteps(parsingSteps) {
+    if (!parsingSteps || !Array.isArray(parsingSteps)) {
+        showError('Invalid LL1 parsing steps data received');
+        return;
+    }
+    
+    const parsingStepsDisplay = document.getElementById('parsing-steps-display');
+    parsingStepsDisplay.innerHTML = '';
+    
+    if (parsingSteps.length === 0) {
+        parsingStepsDisplay.innerHTML = '<div class="no-data">No parsing steps available.</div>';
+        return;
+    }
+    
+    // Create table structure
+    let html = `
+    <div class="parsing-table-container">
+        <table class="parsing-table">
+            <thead>
+                <tr>
+                    <th>Step</th>
+                    <th>Stack</th>
+                    <th>Input</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Add rows for each parsing step
+    parsingSteps.forEach((step, index) => {
+        const stack = step[0];
+        const input = step[1];
+        const animationDelay = index * 50;
+        
+        // Determine action based on differences between current and next step
+        let action = "";
+        if (index < parsingSteps.length - 1) {
+            const nextStack = parsingSteps[index + 1][0];
+            const nextInput = parsingSteps[index + 1][1];
+            
+            // Check if a terminal was matched (stack and input both lost the same terminal)
+            if (stack.length > nextStack.length && input.length > nextInput.length && stack[0] === input[0]) {
+                action = `Match '${stack[0]}'`;
+            } 
+            // Check if a production was expanded (stack changed but input didn't)
+            else if (stack.length !== nextStack.length && input.length === nextInput.length) {
+                // Find the non-terminal that was expanded
+                const nonTerminal = stack[0];
+                action = `Expand ${nonTerminal}`;
+            }
+            // If we can't determine action, leave it blank
+        } else if (index === parsingSteps.length - 1) {
+            // Last step typically indicates acceptance if stack is [$] and input is [$]
+            if (stack.length === 1 && stack[0] === '$' && input.length === 1 && input[0] === '$') {
+                action = 'Accept';
+            }
+        }
+        
+        html += `
+        <tr class="parsing-table-row parsing-animation" style="animation-delay: ${animationDelay}ms">
+            <td class="step-number">${index + 1}</td>
+            <td class="step-stack">
+                <div class="stack-container">
+                    ${stack.map((item, i) => 
+                        `<span class="stack-item" title="Stack position ${i}">${item}</span>`
+                    ).join('')}
+                </div>
+            </td>
+            <td class="step-input">
+                <div class="input-container">
+                    ${input.map((token, i) => 
+                        `<span class="input-token" title="Input position ${i}">${token}</span>`
+                    ).join('')}
+                </div>
+            </td>
+            <td class="step-action">${action}</td>
+        </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    </div>
+    `;
+    
+    parsingStepsDisplay.innerHTML = html;
+    
+    // Add click handler to highlight active row
+    const tableRows = parsingStepsDisplay.querySelectorAll('.parsing-table-row');
+    tableRows.forEach(row => {
+        row.addEventListener('click', () => {
+            // Remove active class from all rows
+            tableRows.forEach(r => r.classList.remove('active'));
+            // Add active class to clicked row
+            row.classList.toggle('active');
+        });
+    });
+}
+
+// Function to display grammar transformations for LL1 parser
+function displayGrammarTransformations(grammar) {
+    if (!grammar) {
+        return;
+    }
+    
+    let html = '<div class="grammar-transformations">';
+    
+    // Left Recursion Removal
+    if (grammar.removed_left_recursion) {
+        html += '<h3>Grammar After Left Recursion Removal:</h3>';
+        html += '<ul class="grammar-list">';
+        
+        for (const nonTerminal in grammar.removed_left_recursion) {
+            const productions = grammar.removed_left_recursion[nonTerminal];
+            html += `<li><span class="non-terminal">${nonTerminal}</span> → `;
+            
+            const productionsHtml = productions.map(prod => {
+                // Handle empty production (epsilon)
+                if (prod.length === 1 && (prod[0] === '' || prod[0] === '#')) {
+                    return '<span class="terminal">ε</span>';
+                }
+                return prod.map(symbol => {
+                    if (symbol === '#') {
+                        return '<span class="terminal">ε</span>';
+                    } else if (symbol.match(/^[A-Z][A-Z']*$/)) {
+                        return `<span class="non-terminal">${symbol}</span>`;
+                    } else {
+                        return `<span class="terminal">${symbol}</span>`;
+                    }
+                }).join(' ');
+            }).join(' <span class="or-symbol">|</span> ');
+            
+            html += productionsHtml + '</li>';
+        }
+        
+        html += '</ul>';
+    }
+    
+    // Left Factoring
+    if (grammar.removed_left_factoring) {
+        html += '<h3>Grammar After Left Factoring:</h3>';
+        html += '<ul class="grammar-list">';
+        
+        for (const nonTerminal in grammar.removed_left_factoring) {
+            const productions = grammar.removed_left_factoring[nonTerminal];
+            html += `<li><span class="non-terminal">${nonTerminal}</span> → `;
+            
+            const productionsHtml = productions.map(prod => {
+                if (prod.length === 1 && (prod[0] === '' || prod[0] === '#')) {
+                    return '<span class="terminal">ε</span>';
+                }
+                return prod.map(symbol => {
+                    if (symbol === '#') {
+                        return '<span class="terminal">ε</span>';
+                    } else if (symbol.match(/^[A-Z][A-Z']*$/)) {
+                        return `<span class="non-terminal">${symbol}</span>`;
+                    } else {
+                        return `<span class="terminal">${symbol}</span>`;
+                    }
+                }).join(' ');
+            }).join(' <span class="or-symbol">|</span> ');
+            
+            html += productionsHtml + '</li>';
+        }
+        
+        html += '</ul>';
+    }
+    
+    html += '</div>';
+    
+    grammarDisplay.innerHTML += html;
+    
+    const listItems = grammarDisplay.querySelectorAll('li');
+    listItems.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateX(0)';
+        }, index * 100);
+    });
+}
+
+// Theme toggle functionality
+function initThemeToggle() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    updateThemeToggleIcon(savedTheme);
+    
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        
+        updateThemeToggleIcon(newTheme);
+        
+        localStorage.setItem('theme', newTheme);
+    });
+}
+
+function updateThemeToggleIcon(theme) {
+    const icon = themeToggleBtn.querySelector('i');
+    if (theme === 'light') {
+        icon.className = 'bx bx-sun';
+        themeToggleBtn.title = 'Switch to dark theme';
+    } else {
+        icon.className = 'bx bx-moon';
+        themeToggleBtn.title = 'Switch to light theme';
+    }
+}
+
+initThemeToggle();
 
 // Initial setup with sample data
 updateUIForParserType(selectedParserType);
